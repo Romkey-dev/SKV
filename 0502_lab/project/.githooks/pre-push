@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+set -euo pipefail
+test -f .gitlab-ci.yml
+python3 -m unittest -v

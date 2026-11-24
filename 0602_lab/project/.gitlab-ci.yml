@@ -1,0 +1,108 @@
+stages: [build, lint, test, security, deploy]
+
+workflow:
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+    - if: $CI_COMMIT_BRANCH && $CI_OPEN_MERGE_REQUESTS
+      when: never
+    - if: $CI_COMMIT_BRANCH
+
+variables:
+  PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
+  APP_VERSION: "1.0.0"
+
+default:
+  image: python:3.11-slim
+  cache:
+    key:
+      files: [requirements.txt, requirements-dev.txt]
+    paths: [.cache/pip/]
+
+build:
+  stage: build
+  script:
+    - mkdir -p dist
+    - python -m pip wheel -r requirements.txt -w dist/wheels
+    - tar -czf dist/application.tar.gz app.py requirements.txt
+  artifacts:
+    paths: [dist/]
+    expire_in: 1 week
+
+lint:
+  stage: lint
+  script:
+    - python -m pip install -r requirements-dev.txt
+    - python -m flake8 app.py tests --max-line-length=100
+
+.test_base:
+  stage: test
+  needs: [build]
+  before_script:
+    - tar -xzf dist/application.tar.gz
+    - python -m pip install --no-index --find-links dist/wheels -r requirements.txt
+    - python -m pip install -r requirements-dev.txt
+
+test:
+  extends: .test_base
+  script:
+    - python -m pytest tests/test_app.py --junitxml=report.xml
+  artifacts:
+    when: always
+    reports:
+      junit: report.xml
+
+integration_test:
+  extends: .test_base
+  script:
+    - python -m pytest tests/test_integration.py
+
+coverage_report:
+  extends: .test_base
+  script:
+    - python -m coverage run --source=app -m pytest
+    - python -m coverage xml
+  artifacts:
+    reports:
+      coverage_report:
+        coverage_format: cobertura
+        path: coverage.xml
+    paths: [coverage.xml]
+
+security_scan:
+  stage: security
+  script:
+    - python -m pip install -r requirements-dev.txt
+    - python -m bandit app.py
+
+experimental:
+  stage: security
+  allow_failure: true
+  script:
+    - python -m pip install pip-audit
+    - python -m pip_audit -r requirements.txt
+
+.deploy:
+  stage: deploy
+  needs: [build, lint, test, integration_test, coverage_report, security_scan]
+  script:
+    - mkdir -p deployment
+    - tar -xzf dist/application.tar.gz -C deployment
+    - python -m pip install --no-index --find-links dist/wheels -r deployment/requirements.txt
+    - cd deployment
+    - python -c "from app import app; response = app.test_client().get('/health'); assert response.status_code == 200 and response.json['status'] == 'healthy'"
+    - cp ../dist/application.tar.gz .
+  artifacts:
+    paths: [deployment/application.tar.gz]
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+      when: manual
+      allow_failure: true
+
+deploy_staging:
+  extends: .deploy
+  environment: staging
+
+deploy_production:
+  extends: .deploy
+  environment: production

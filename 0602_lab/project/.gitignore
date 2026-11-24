@@ -1,0 +1,10 @@
+__pycache__/
+*.pyc
+.pytest_cache/
+.flake8-cache/
+.cache/
+.coverage
+coverage.xml
+report.xml
+dist/
+deployment/

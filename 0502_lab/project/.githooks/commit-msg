@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+set -euo pipefail
+IFS= read -r subject < "$1" || test -n "$subject"
+if [[ ! "$subject" =~ ^(feat|fix|docs|style|refactor|perf|test|chore|ci|build)(\([[:alnum:]_./-]+\))?!?:[[:space:]][^[:space:]] ]]; then
+    echo 'Expected a Conventional Commit subject.' >&2
+    exit 1
+fi

@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+while IFS= read -r -d '' path; do
+    if git show ":$path" | grep -Ei '(^|[^[:alnum:]_])(password|api[_-]?key|token)[[:space:]]*[:=][[:space:]]*[^[:space:]]+|^[[:space:]]*-----BEGIN .*PRIVATE KEY-----' >/dev/null; then
+        printf 'Potential secret in staged file: %s\n' "$path" >&2
+        exit 1
+    fi
+
+    case "$path" in
+        *.py)
+            git show ":$path" | python3 -c 'import ast, sys; ast.parse(sys.stdin.buffer.read(), filename=sys.argv[1])' "$path"
+            ;;
+        *.md)
+            git show ":$path" | awk '
+                match($0, /^#+/) && RLENGTH <= 6 {
+                    after = substr($0, RLENGTH + 1, 1)
+                    if (after !~ /[[:space:]]/ || (NR > 1 && previous !~ /^[[:space:]]*$/)) invalid = 1
+                }
+                { previous = $0 }
+                END { exit invalid }
+            ' || { printf 'Invalid Markdown headings: %s\n' "$path" >&2; exit 1; }
+            ;;
+    esac
+done < <(git diff --cached --name-only --diff-filter=ACMR -z)
