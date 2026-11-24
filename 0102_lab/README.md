@@ -10,23 +10,90 @@
 
 Настроить Git в Debian, подключиться к GitLab по SSH и отправить историю локального репозитория в удалённый проект.
 
+## Задачи работы
+
+- Проверить версию Git и настроить данные автора коммитов.
+- Создать пару SSH-ключей, зарегистрировать публичный ключ в GitLab и проверить подключение.
+- Создать репозиторий в ветке `main`, выполнить два коммита и проверить правила `.gitignore`.
+- Отправить историю по SSH и сверить локальную ветку с удалённой.
+
 ## Ход выполнения
 
-1. Проверил Git командой `wsl -d Debian12 -- git --version`. В Debian 12 Bookworm установлена версия `2.39.5`.
-2. Задал имя и email автора через `git config --global user.name` и `git config --global user.email`.
-3. Создал SSH-ключ Ed25519, загрузил его в `ssh-agent` и добавил публичный ключ в профиль GitLab. При проверке командой `ssh -T git@gitlab.com` сервер ответил `Welcome to GitLab, @Romkey-dev!`.
-4. Инициализировал репозиторий в `/root/hello-git` командой `git init -b main`. Добавил `README.md` с описанием проекта и сведениями об авторе.
-5. Добавил [`.gitignore`](.gitignore) с правилами для системных, временных файлов и каталогов IDE. Проверил правила командой `git check-ignore`.
-6. Настроил SSH-адрес `origin` и выполнил `git push -u origin main`. При отправке GitLab создал приватный проект `hello-git`.
+### 1. Проверка Git и настройка автора
+
+В Windows запустил команду `wsl -d Debian12 -- git --version` и получил `git version 2.39.5`. Работа выполнялась в Debian 12 Bookworm. В Debian настроил полное имя автора и почту, привязанную к профилю GitLab.
+
+```bash
+git config --global user.name "Ляхов Роман Андреевич"
+git config --global user.email "<email профиля GitLab>"
+```
+
+### 2. Создание ключа и проверка SSH
+
+Создал пару ключей Ed25519 в `~/.ssh`. Для каталога установил права `700`, для приватного ключа — `600`. Ключ загрузил в `ssh-agent`, а содержимое файла `id_ed25519.pub` добавил в профиль GitLab под именем `Debian12`. Ключ сервера сверил с опубликованным GitLab ключом хоста.
+
+```bash
+ssh-keygen -t ed25519 -C "<email профиля GitLab>"
+chmod 700 ~/.ssh
+chmod 600 ~/.ssh/id_ed25519
+eval "$(ssh-agent -s)"
+ssh-add ~/.ssh/id_ed25519
+ssh -T git@gitlab.com
+```
+
+Ответ GitLab:
+
+```text
+Welcome to GitLab, @Romkey-dev!
+```
+
+### 3. Создание репозитория и двух коммитов
+
+В `/root/hello-git` инициализировал ветку `main`. В первый коммит вошёл `README.md` с описанием проекта и сведениями об авторе. Во второй вошёл [`.gitignore`](.gitignore).
+
+```bash
+git init -b main
+git add README.md
+git commit -m "feat: add README.md with project description"
+git add .gitignore
+git commit -m "chore: add .gitignore"
+```
+
+Проверил все шесть правил с помощью `git check-ignore -v .DS_Store Thumbs.db sample.tmp sample.log .vscode/test .idea/test`. Каждому пути соответствовало правило из `.gitignore`:
+
+| Проверяемые пути | Совпавшие правила |
+| --- | --- |
+| `.DS_Store`, `Thumbs.db` | `.DS_Store`, `Thumbs.db` |
+| `sample.tmp`, `sample.log` | `*.tmp`, `*.log` |
+| `.vscode/test`, `.idea/test` | `.vscode/`, `.idea/` |
+
+### 4. Отправка в GitLab
+
+Указал SSH-адрес удалённого репозитория и отправил ветку. GitLab создал приватный проект `hello-git` при первом push и принял оба коммита.
+
+```bash
+git remote add origin git@gitlab.com:Romkey-dev/hello-git.git
+git push -u origin main
+```
 
 ## Результат
 
+Содержимое ветки `main` в учебном репозитории GitLab:
+
 ```text
-457e5f9 chore: add .gitignore
-580a8d6 feat: add README.md with project description
+hello-git/
+├── .gitignore
+└── README.md
 ```
 
-Локальная ветка `main` отслеживает `origin/main`. Сверка через `git ls-remote` подтвердила совпадение последних коммитов. GitLab использует `main` как ветку по умолчанию. Рабочая директория чистая.
+Вывод `git log --oneline --graph --all`:
+
+```text
+* 457e5f9 chore: add .gitignore
+* 580a8d6 feat: add README.md with project description
+```
+
+Команда `git status --short --branch` вывела только `## main...origin/main`. Локальная ветка отслеживает `origin/main`, рабочая директория чистая. Команда `git ls-remote --symref origin HEAD` показала, что ветка по умолчанию — `main` и её последний коммит совпадает с локальным `457e5f97c0ecf69de4b6dbcfc6eeff8f31ef67db`.
 
 ## Ответы на контрольные вопросы
 
