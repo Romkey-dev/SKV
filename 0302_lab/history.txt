@@ -1,0 +1,13 @@
+*   4743f3b Merge branch 'feature/calculator' into 'main'
+|\  
+| * 2f66ffb docs: document calculator addition
+| * 128cff2 feat: add calculator addition
+* |   04d8bdd Merge branch 'feature/add_contributor' into 'main'
+|\ \  
+| |/  
+|/|   
+| * 3468c4e fix: correct contributors table formatting
+| * 073a69b docs: add self to contributors
+|/  
+* 68a4674 docs: add CONTRIBUTORS.md
+* cae1866 docs: initialize collaboration project
