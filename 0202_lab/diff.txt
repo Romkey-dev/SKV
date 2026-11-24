@@ -1,0 +1,10 @@
+diff --git a/features.txt b/features.txt
+index 01070de..3853fc4 100644
+--- a/features.txt
++++ b/features.txt
+@@ -6,3 +6,5 @@
+ 5. История платежей
+ 6. Система уведомлений
+ первая фича
++вторая фича
++третья фича
